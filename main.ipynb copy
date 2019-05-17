@@ -1,0 +1,1229 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "#import matplotlib.pyplot as plt\n",
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "#from keras.models import load_model\n",
+    "#from keras.preprocessing.sequence import pad_sequences\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "#import requests\n",
+    "#import tweepy\n",
+    "import pickle\n",
+    "import statistics\n",
+    "#import seaborn as sns\n",
+    "import re\n",
+    "from langdetect import detect\n",
+    "#from textblob import TextBlob\n",
+    "#from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer\n",
+    "import pickle\n",
+    "\n",
+    "import os\n",
+    "import time\n",
+    "import sys\n",
+    "import math\n",
+    "from datetime import timedelta\n",
+    "\n",
+    "os.environ['KMP_DUPLICATE_LIB_OK']='True'"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def clean_tweet(tweet):\n",
+    "    tweet = re.sub(r'\\B\\@\\w+\\b|^RT|(http|ftp|https)://([\\w_-]+(?:(?:\\.[\\w_-]+)+))([\\w.,@?^=%&:/~+#-]*[\\w@?^=%&/~+#-])?', '', tweet)\n",
+    "    tweet = re.sub(r'\\#', ' ', tweet)\n",
+    "    try:\n",
+    "        if detect(tweet) != 'en':\n",
+    "            return ''\n",
+    "    except:\n",
+    "        return ''\n",
+    "    return tweet"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "' this is test  l el '"
+      ]
+     },
+     "execution_count": 4,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "clean_tweet(\"@hi this is test http://ahsdiffhs.de l#el @asd\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "ids = pd.DataFrame()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "auth = tweepy.OAuthHandler(\"4UQ46QHIXfMwlC2eV6t25yhUV\", \"XMCLz6yO5Y3npSAl6PKKuQON55vD8KjBHjoG0NiXbw6uWC4pOE\")\n",
+    "auth.set_access_token(\"844929860476768257-a3eZJb8SvB3deb1jtEoVS7ZE849Ozen\", \"2ywwUCaAF5YVapEfcpZwh8LflDer7H7RxmkSbiSpKEOmw\")\n",
+    "\n",
+    "api = tweepy.API(auth)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "auth2 = tweepy.OAuthHandler(\"NCgfaDDFh345pyjJGWbP9pA1q\", \"2WuhhVTWulGeAeiCDKtoAfE94rwOs8Ezr9xVirfUiBVWK8sLYG\")\n",
+    "auth2.set_access_token(\"844929860476768257-vFHxUwhHbQZddC8YSPtggyVSPef7JrE\", \"yLe2ZQs381OzEMmBQPcUJi9oTPB1b9P8KtV8zHIiU9mtw\")\n",
+    "\n",
+    "api2 = tweepy.API(auth2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "followers_arr = []\n",
+    "\n",
+    "for page in tweepy.Cursor(api.followers_ids, \"cnnbrk\").pages(15):\n",
+    "    for follower in page:\n",
+    "        if str(follower) not in followers_arr:\n",
+    "            followers_arr.append(str(follower))\n",
+    "    \n",
+    "len(followers_arr)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "user_ids = pd.DataFrame().append(followers_arr)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "user_ids.to_csv(\"final_users.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "user_ids = pd.read_csv(\"final_users.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print(len(user_ids))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "users_and_tweets = pd.DataFrame(columns=range(4001))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "index = 0\n",
+    "api_temp = api\n",
+    "for user_id in user_ids[:29].iterrows():\n",
+    "    print(\"Index: \", index)\n",
+    "    new_user = [user_id[1][2]]\n",
+    "    try:\n",
+    "        while api_temp.rate_limit_status()['resources']['statuses']['/statuses/user_timeline']['remaining'] <= 0:  \n",
+    "            print(\"changed apis...\")\n",
+    "            api_temp = api2 if api_temp == api else api\n",
+    "    except:\n",
+    "        print(\"changed apis...\")\n",
+    "        api_temp = api2 if api_temp == api else api\n",
+    "\n",
+    "    try:\n",
+    "        for status in tweepy.Cursor(api_temp.user_timeline, user_id[1][2]).items(2000):\n",
+    "            new_user.append(status.text)\n",
+    "            new_user.append(status.created_at)\n",
+    "    except:\n",
+    "        print(\"Oops!\",sys.exc_info()[0],\"occured.\")\n",
+    "        print(\"Next entry.\")\n",
+    "        print()\n",
+    "    print(len(new_user))\n",
+    "    if len(new_user) > 20*2:\n",
+    "        new_user += [None] * (4001 - len(new_user))\n",
+    "        users_and_tweets.loc[index] = new_user\n",
+    "    index += 1"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "users_and_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "users_and_tweets = users_and_tweets.reset_index(drop=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "users_and_tweets.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "print(users_and_tweets.head())\n",
+    "users_and_tweets.to_csv(\"./users_and_tweets.csv\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [
+    {
+     "ename": "KeyboardInterrupt",
+     "evalue": "",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mKeyboardInterrupt\u001b[0m                         Traceback (most recent call last)",
+      "\u001b[0;32m<ipython-input-5-d1f89b4aa323>\u001b[0m in \u001b[0;36m<module>\u001b[0;34m\u001b[0m\n\u001b[1;32m      3\u001b[0m \u001b[0mtweets_imported3\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpd\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_pickle\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"users_and_tweets3.pkl\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      4\u001b[0m \u001b[0mtweets_imported4\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpd\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_pickle\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"users_and_tweets4.pkl\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m----> 5\u001b[0;31m \u001b[0mtweets_imported5\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpd\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_pickle\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"users_and_tweets5.pkl\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m      6\u001b[0m \u001b[0mtweets_imported6\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpd\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_pickle\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"users_and_tweets6.pkl\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m      7\u001b[0m \u001b[0mtweets_imported7\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mpd\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mread_pickle\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"users_and_tweets7.pkl\"\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesissecond/lib/python3.7/site-packages/pandas/io/pickle.py\u001b[0m in \u001b[0;36mread_pickle\u001b[0;34m(path, compression)\u001b[0m\n\u001b[1;32m    177\u001b[0m                     lambda f: pc.load(f, encoding=encoding, compat=True))\n\u001b[1;32m    178\u001b[0m     \u001b[0;32mtry\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 179\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mtry_read\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mpath\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    180\u001b[0m     \u001b[0;32mexcept\u001b[0m \u001b[0mException\u001b[0m\u001b[0;34m:\u001b[0m  \u001b[0;31m# noqa: E722\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    181\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mPY3\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesissecond/lib/python3.7/site-packages/pandas/io/pickle.py\u001b[0m in \u001b[0;36mtry_read\u001b[0;34m(path, encoding)\u001b[0m\n\u001b[1;32m    164\u001b[0m                 \u001b[0;31m# We want to silence any warnings about, e.g. moved modules.\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    165\u001b[0m                 \u001b[0mwarnings\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0msimplefilter\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"ignore\"\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mWarning\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 166\u001b[0;31m                 \u001b[0;32mreturn\u001b[0m \u001b[0mread_wrapper\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;32mlambda\u001b[0m \u001b[0mf\u001b[0m\u001b[0;34m:\u001b[0m \u001b[0mpkl\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mload\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mf\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    167\u001b[0m         \u001b[0;32mexcept\u001b[0m \u001b[0mException\u001b[0m\u001b[0;34m:\u001b[0m  \u001b[0;31m# noqa: E722\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    168\u001b[0m             \u001b[0;31m# reg/patched pickle\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesissecond/lib/python3.7/site-packages/pandas/io/pickle.py\u001b[0m in \u001b[0;36mread_wrapper\u001b[0;34m(func)\u001b[0m\n\u001b[1;32m    146\u001b[0m                             is_text=False)\n\u001b[1;32m    147\u001b[0m         \u001b[0;32mtry\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 148\u001b[0;31m             \u001b[0;32mreturn\u001b[0m \u001b[0mfunc\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mf\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    149\u001b[0m         \u001b[0;32mfinally\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    150\u001b[0m             \u001b[0;32mfor\u001b[0m \u001b[0m_f\u001b[0m \u001b[0;32min\u001b[0m \u001b[0mfh\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesissecond/lib/python3.7/site-packages/pandas/io/pickle.py\u001b[0m in \u001b[0;36m<lambda>\u001b[0;34m(f)\u001b[0m\n\u001b[1;32m    164\u001b[0m                 \u001b[0;31m# We want to silence any warnings about, e.g. moved modules.\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    165\u001b[0m                 \u001b[0mwarnings\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0msimplefilter\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m\"ignore\"\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mWarning\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 166\u001b[0;31m                 \u001b[0;32mreturn\u001b[0m \u001b[0mread_wrapper\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;32mlambda\u001b[0m \u001b[0mf\u001b[0m\u001b[0;34m:\u001b[0m \u001b[0mpkl\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mload\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mf\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    167\u001b[0m         \u001b[0;32mexcept\u001b[0m \u001b[0mException\u001b[0m\u001b[0;34m:\u001b[0m  \u001b[0;31m# noqa: E722\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    168\u001b[0m             \u001b[0;31m# reg/patched pickle\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32mpandas/_libs/tslibs/timestamps.pyx\u001b[0m in \u001b[0;36mpandas._libs.tslibs.timestamps.Timestamp.__new__\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;32mpandas/_libs/tslibs/conversion.pyx\u001b[0m in \u001b[0;36mpandas._libs.tslibs.conversion.convert_to_tsobject\u001b[0;34m()\u001b[0m\n",
+      "\u001b[0;31mKeyboardInterrupt\u001b[0m: "
+     ]
+    }
+   ],
+   "source": [
+    "tweets_imported1 = pd.read_pickle(\"users_and_tweets1.pkl\")\n",
+    "tweets_imported2 = pd.read_pickle(\"users_and_tweets2.pkl\")\n",
+    "tweets_imported3 = pd.read_pickle(\"users_and_tweets3.pkl\")\n",
+    "tweets_imported4 = pd.read_pickle(\"users_and_tweets4.pkl\")\n",
+    "tweets_imported5 = pd.read_pickle(\"users_and_tweets5.pkl\")\n",
+    "tweets_imported6 = pd.read_pickle(\"users_and_tweets6.pkl\")\n",
+    "tweets_imported7 = pd.read_pickle(\"users_and_tweets7.pkl\")\n",
+    "tweets_imported8 = pd.read_pickle(\"users_and_tweets8.pkl\")\n",
+    "tweets_imported9 = pd.read_pickle(\"users_and_tweets9.pkl\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 89,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(3518, 4001)"
+      ]
+     },
+     "execution_count": 89,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "tweets_imported9.shape"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "all_tweets = pd.concat([tweets_imported1, tweets_imported2, tweets_imported3, tweets_imported4, tweets_imported5, tweets_imported6, tweets_imported7, tweets_imported8, tweets_imported9])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 91,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "all_tweets = all_tweets.reset_index(drop=True)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "all_tweets.to_pickle(\"all_users_and_tweets.pkl\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "all_tweets = pd.read_pickle(\"all_users_and_tweets.pkl\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "with open('word_features.pkl', 'rb') as f:\n",
+    "    word_features = pickle.load(f)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 32,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_features(tweet):\n",
+    "    words = set(tweet)\n",
+    "    word_dict = {}\n",
+    "    for word in word_features:\n",
+    "        word_dict[word] = (word in words)\n",
+    "    return word_dict"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 33,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "def get_features2(tweet):\n",
+    "    return_tweet = np.zeros(8000)\n",
+    "    for idx, word in enumerate(word_features):\n",
+    "        return_tweet[idx] = (word in tweet)\n",
+    "    return return_tweet"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 66,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "ids_and_scores = pd.DataFrame(columns=[\"id\", \"sentiment_score\", \"num_tweets\", \"avg. RT\", \"avg. @\"])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 67,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "with open('classifier_200.pkl', 'rb') as f:\n",
+    "    log_class = pickle.load(f)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 68,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "17292"
+      ]
+     },
+     "execution_count": 68,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "len(all_tweets)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 69,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "300\n",
+      "Not enough tweets\n",
+      "301\n",
+      "Not enough tweets\n",
+      "302\n",
+      "303\n",
+      "304\n",
+      "305\n",
+      "306\n",
+      "Not enough tweets\n",
+      "307\n",
+      "308\n",
+      "309\n",
+      "Not enough tweets\n",
+      "310\n",
+      "Not enough tweets\n",
+      "311\n",
+      "Not enough tweets\n",
+      "312\n",
+      "313\n",
+      "Not enough tweets\n",
+      "314\n",
+      "315\n",
+      "Not enough tweets\n",
+      "316\n",
+      "317\n",
+      "318\n",
+      "Not enough tweets\n",
+      "319\n",
+      "Not enough tweets\n",
+      "320\n",
+      "Not enough tweets\n",
+      "321\n",
+      "322\n",
+      "Not enough tweets\n",
+      "323\n",
+      "324\n",
+      "Not enough tweets\n",
+      "325\n",
+      "Not enough tweets\n",
+      "326\n",
+      "327\n",
+      "Not enough tweets\n",
+      "328\n",
+      "329\n",
+      "330\n",
+      "Not enough tweets\n",
+      "331\n",
+      "332\n",
+      "Not enough tweets\n",
+      "333\n",
+      "334\n",
+      "Not enough tweets\n",
+      "335\n",
+      "336\n",
+      "337\n",
+      "Not enough tweets\n",
+      "338\n",
+      "Not enough tweets\n",
+      "339\n",
+      "Not enough tweets\n",
+      "340\n",
+      "Not enough tweets\n",
+      "341\n",
+      "342\n",
+      "343\n",
+      "344\n",
+      "345\n",
+      "346\n",
+      "Not enough tweets\n",
+      "347\n",
+      "348\n",
+      "349\n",
+      "Not enough tweets\n",
+      "350\n",
+      "Not enough tweets\n",
+      "351\n",
+      "Not enough tweets\n",
+      "352\n",
+      "Not enough tweets\n",
+      "353\n",
+      "Not enough tweets\n",
+      "354\n",
+      "355\n",
+      "356\n",
+      "Not enough tweets\n",
+      "357\n",
+      "358\n",
+      "359\n",
+      "Not enough tweets\n",
+      "360\n",
+      "361\n",
+      "362\n",
+      "363\n",
+      "364\n",
+      "365\n",
+      "366\n",
+      "367\n",
+      "368\n",
+      "369\n"
+     ]
+    },
+    {
+     "ename": "KeyboardInterrupt",
+     "evalue": "",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mKeyboardInterrupt\u001b[0m                         Traceback (most recent call last)",
+      "\u001b[0;32m<ipython-input-69-0847a50d2037>\u001b[0m in \u001b[0;36m<module>\u001b[0;34m\u001b[0m\n\u001b[1;32m     12\u001b[0m             \u001b[0;32mbreak\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     13\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0monly_one_year\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 14\u001b[0;31m             \u001b[0;32mif\u001b[0m \u001b[0;34m(\u001b[0m\u001b[0mtimestamp\u001b[0m \u001b[0;34m-\u001b[0m \u001b[0mall_tweets\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mval\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mindex\u001b[0m\u001b[0;34m+\u001b[0m\u001b[0;36m1\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdays\u001b[0m \u001b[0;34m>\u001b[0m \u001b[0mtimedelta\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdays\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m365\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdays\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     15\u001b[0m                 \u001b[0;32mbreak\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     16\u001b[0m         \u001b[0mcleaned_tweet\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mclean_tweet\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mall_tweets\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mval\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mindex\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/indexing.py\u001b[0m in \u001b[0;36m__getitem__\u001b[0;34m(self, key)\u001b[0m\n\u001b[1;32m   1498\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1499\u001b[0m             \u001b[0mmaybe_callable\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mcom\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply_if_callable\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mobj\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1500\u001b[0;31m             \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_getitem_axis\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mmaybe_callable\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1501\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1502\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0m_is_scalar_access\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mkey\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/indexing.py\u001b[0m in \u001b[0;36m_getitem_axis\u001b[0;34m(self, key, axis)\u001b[0m\n\u001b[1;32m   1911\u001b[0m         \u001b[0;31m# fall thru to straight lookup\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1912\u001b[0m         \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_validate_key\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1913\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_get_label\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1914\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1915\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/indexing.py\u001b[0m in \u001b[0;36m_get_label\u001b[0;34m(self, label, axis)\u001b[0m\n\u001b[1;32m    139\u001b[0m             \u001b[0;32mraise\u001b[0m \u001b[0mIndexingError\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m'no slices here, handle elsewhere'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    140\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 141\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mobj\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_xs\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mlabel\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    142\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    143\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0m_get_loc\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mNone\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/generic.py\u001b[0m in \u001b[0;36mxs\u001b[0;34m(self, key, axis, level, drop_level)\u001b[0m\n\u001b[1;32m   3596\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   3597\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mis_scalar\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 3598\u001b[0;31m             \u001b[0mnew_values\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_data\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfast_xs\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   3599\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   3600\u001b[0m             \u001b[0;31m# may need to box a datelike-scalar\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/internals/managers.py\u001b[0m in \u001b[0;36mfast_xs\u001b[0;34m(self, loc)\u001b[0m\n\u001b[1;32m    900\u001b[0m             \u001b[0;31m# result[blk.mgr_locs] = blk._slice((slice(None), loc))\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    901\u001b[0m             \u001b[0;32mfor\u001b[0m \u001b[0mi\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mrl\u001b[0m \u001b[0;32min\u001b[0m \u001b[0menumerate\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mblk\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mmgr_locs\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 902\u001b[0;31m                 \u001b[0mresult\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mrl\u001b[0m\u001b[0;34m]\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mblk\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_try_coerce_result\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mblk\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0miget\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mloc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    903\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    904\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mis_extension_array_dtype\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/internals/blocks.py\u001b[0m in \u001b[0;36miget\u001b[0;34m(self, i)\u001b[0m\n\u001b[1;32m    331\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    332\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0miget\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mi\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 333\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mvalues\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    334\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    335\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0mset\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mlocs\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mvalues\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;31mKeyboardInterrupt\u001b[0m: "
+     ]
+    }
+   ],
+   "source": [
+    "overall = []\n",
+    "only_one_year = True\n",
+    "for val in range(300, len(all_tweets)):\n",
+    "    print(val)\n",
+    "    num_tweets = 0\n",
+    "    num_rt = 0\n",
+    "    num_ats = 0\n",
+    "    tweets = []\n",
+    "    timestamp = all_tweets.loc[val][2]\n",
+    "    for index in range(1, 4001, 2):\n",
+    "        if not all_tweets.loc[val][index]:\n",
+    "            break\n",
+    "        if only_one_year:\n",
+    "            if (timestamp - all_tweets.loc[val][index+1]).days > timedelta(days=365).days:\n",
+    "                break\n",
+    "        cleaned_tweet = clean_tweet(all_tweets.loc[val][index])\n",
+    "        if cleaned_tweet == '' or cleaned_tweet == ' ':\n",
+    "            continue\n",
+    "        num_tweets += 1\n",
+    "        tweets.append(log_class.classify(get_features(cleaned_tweet)))\n",
+    "        if all_tweets.loc[val][index][:2] == 'RT':\n",
+    "            num_rt += 1\n",
+    "        elif all_tweets.loc[val][index][0] == '@':\n",
+    "            num_ats += 1\n",
+    "    if num_tweets < 20:\n",
+    "        print(\"Not enough tweets\")\n",
+    "        continue\n",
+    "    tweets_plot = []\n",
+    "    for tweet in tweets:\n",
+    "        tweets_plot.append(tweet)\n",
+    "\n",
+    "    #average3 = []\n",
+    "\n",
+    "    #window_size = 20\n",
+    "\n",
+    "    #for index in range(0, len(tweets_plot)-9, window_size):\n",
+    "        #average3.append(sum(tweets_plot[index:index+window_size])/window_size)\n",
+    "\n",
+    "\n",
+    "    latest_30 = tweets_plot[0:int(len(tweets_plot)*0.3)]\n",
+    "    earliest_30 = tweets_plot[int(len(tweets_plot)*0.7):len(tweets_plot)]\n",
+    "\n",
+    "    latest_30_avg = latest_30.count(\"pos\")/len(latest_30)\n",
+    "    earliest_30_avg = earliest_30.count(\"pos\")/len(earliest_30)\n",
+    "\n",
+    "    overall.append(latest_30_avg - earliest_30_avg)\n",
+    "    ids_and_scores.loc[val] = [str(all_tweets.loc[val][0]), latest_30_avg - earliest_30_avg, num_tweets, num_rt/num_tweets, num_ats/num_tweets]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 70,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "17\n",
+      "22\n",
+      "0.4358974358974359 %\n"
+     ]
+    }
+   ],
+   "source": [
+    "count_neg = 0\n",
+    "for row in ids_and_scores.iterrows():\n",
+    "    if row[1][1] < 0:\n",
+    "        count_neg += 1\n",
+    "    \n",
+    "print(count_neg)\n",
+    "print(len(ids_and_scores)-count_neg)\n",
+    "print(count_neg/len(ids_and_scores),\"%\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 71,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "sentiment_score      0.010393\n",
+       "num_tweets         310.769231\n",
+       "avg. RT              0.541281\n",
+       "avg. @               0.210083\n",
+       "dtype: float64"
+      ]
+     },
+     "execution_count": 71,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "ids_and_scores.loc[:,[\"sentiment_score\", \"num_tweets\", \"avg. RT\", \"avg. @\"]].mean()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 72,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "                 sentiment_score   avg. RT    avg. @\n",
+      "sentiment_score         1.000000  0.064010 -0.025799\n",
+      "avg. RT                 0.064010  1.000000 -0.726706\n",
+      "avg. @                 -0.025799 -0.726706  1.000000\n"
+     ]
+    }
+   ],
+   "source": [
+    "corr = ids_and_scores.corr()\n",
+    "print(corr)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 55,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "0.0\n",
+      "-0.4444444444444444\n",
+      "-0.021885521885521952\n",
+      "0.07051282051282048\n",
+      "-0.00028010768584363355\n",
+      "0.0\n",
+      "0.0\n",
+      "0.04112554112554112\n",
+      "-0.029712490033300565\n",
+      "0.7888888888888889\n",
+      "0.3392857142857143\n",
+      "0.1333333333333333\n",
+      "0.25\n",
+      "0.07272727272727275\n",
+      "0.022041684505242798\n",
+      "0.10070532915360497\n",
+      "-0.020612213505614596\n",
+      "0.0\n",
+      "-0.0013568521031207537\n",
+      "0.0\n",
+      "0.01942645698427381\n",
+      "0.005375062096373506\n",
+      "0.1578947368421053\n",
+      "-0.0007112375533427917\n",
+      "0.0\n",
+      "-0.0023809523809523725\n",
+      "0.01712301587301579\n",
+      "0.03205128205128205\n",
+      "0.07692307692307687\n",
+      "0.19999999999999996\n",
+      "0.19451219512195117\n",
+      "0.19999999999999996\n",
+      "0.06190476190476191\n",
+      "0.015717060004608152\n",
+      "0.1428571428571429\n",
+      "0.04166666666666663\n",
+      "-0.005376344086021612\n",
+      "0.03447749809305878\n",
+      "0.5\n",
+      "-0.03925429409300374\n",
+      "0.06695156695156701\n",
+      "0.029233870967741882\n",
+      "-0.05411255411255411\n",
+      "0.07040139064475348\n",
+      "-0.01388888888888884\n",
+      "0.08333333333333337\n",
+      "0.1071428571428571\n",
+      "0.0419051410939133\n",
+      "-0.039399509803921595\n",
+      "0.2857142857142857\n",
+      "0.09047619047619049\n",
+      "-0.04761904761904756\n",
+      "0.00923281934132869\n",
+      "-0.000925583117364015\n",
+      "0.19673469387755105\n",
+      "0.2727272727272727\n",
+      "-0.0008080808080808133\n",
+      "0.0\n",
+      "-0.01098901098901095\n",
+      "0.11111111111111116\n",
+      "0.0\n",
+      "0.02172215039862102\n",
+      "0.1166666666666667\n",
+      "0.07894736842105265\n",
+      "-0.15000000000000002\n",
+      "-0.020813180640933626\n",
+      "0.0\n",
+      "-0.0006172839506173311\n",
+      "-0.33974358974358976\n",
+      "0.04347826086956519\n",
+      "0.045355524573021944\n",
+      "0.08181818181818179\n",
+      "0.08181818181818179\n",
+      "-0.065359477124183\n",
+      "0.1183333333333334\n",
+      "-0.10909090909090902\n",
+      "-0.30000000000000004\n",
+      "-0.903030303030303\n",
+      "0.4285714285714286\n",
+      "-0.0001400560224089631\n",
+      "0.0\n",
+      "0.04661917260342452\n",
+      "-0.0011614401858304202\n",
+      "0.0\n",
+      "-0.007575757575757569\n",
+      "-0.11695906432748537\n",
+      "-0.01388888888888884\n",
+      "0.19999999999999996\n",
+      "-0.002849002849002802\n",
+      "0.29166666666666663\n",
+      "0.020250691305283675\n",
+      "0.015426997245179042\n",
+      "0.0\n",
+      "0.125\n",
+      "-0.10256410256410253\n",
+      "-0.005698005698005715\n",
+      "0.33333333333333337\n",
+      "0.05714285714285705\n",
+      "-0.001209921355111887\n",
+      "0.08181818181818179\n"
+     ]
+    }
+   ],
+   "source": [
+    "for val in range(0, 100):\n",
+    "    print(ids_and_scores.iloc[val][1])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 76,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>id</th>\n",
+       "      <th>sentiment_score</th>\n",
+       "      <th>num_tweets</th>\n",
+       "      <th>avg. RT</th>\n",
+       "      <th>avg. @</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>id</th>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>-0.041425</td>\n",
+       "      <td>-0.300326</td>\n",
+       "      <td>0.105112</td>\n",
+       "      <td>0.095457</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>sentiment_score</th>\n",
+       "      <td>-0.041425</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>0.063616</td>\n",
+       "      <td>0.027806</td>\n",
+       "      <td>-0.061938</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>num_tweets</th>\n",
+       "      <td>-0.300326</td>\n",
+       "      <td>0.063616</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>-0.098622</td>\n",
+       "      <td>0.061431</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>avg. RT</th>\n",
+       "      <td>0.105112</td>\n",
+       "      <td>0.027806</td>\n",
+       "      <td>-0.098622</td>\n",
+       "      <td>1.000000</td>\n",
+       "      <td>-0.498562</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>avg. @</th>\n",
+       "      <td>0.095457</td>\n",
+       "      <td>-0.061938</td>\n",
+       "      <td>0.061431</td>\n",
+       "      <td>-0.498562</td>\n",
+       "      <td>1.000000</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "                       id  sentiment_score  num_tweets   avg. RT    avg. @\n",
+       "id               1.000000        -0.041425   -0.300326  0.105112  0.095457\n",
+       "sentiment_score -0.041425         1.000000    0.063616  0.027806 -0.061938\n",
+       "num_tweets      -0.300326         0.063616    1.000000 -0.098622  0.061431\n",
+       "avg. RT          0.105112         0.027806   -0.098622  1.000000 -0.498562\n",
+       "avg. @           0.095457        -0.061938    0.061431 -0.498562  1.000000"
+      ]
+     },
+     "execution_count": 76,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "ids_and_scores.astype('float64').corr()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "with open('best_regressor.pkl', 'rb') as f:\n",
+    "    reg = pickle.load(f)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "3.917339795838185"
+      ]
+     },
+     "execution_count": 13,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "float(reg.predict([get_features2(\"noob\")]))"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 74,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "ids_and_scores = pd.DataFrame(columns=[\"id\", \"sentiment_score\", \"num_tweets\", \"avg. RT\", \"avg. @\"])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 75,
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "17291\n",
+      "17290\n",
+      "17289\n",
+      "17288\n",
+      "Not enough tweets\n",
+      "17287\n",
+      "17286\n",
+      "Not enough tweets\n",
+      "17285\n",
+      "17284\n",
+      "17283\n",
+      "Not enough tweets\n",
+      "17282\n",
+      "17281\n",
+      "Not enough tweets\n",
+      "17280\n",
+      "17279\n",
+      "17278\n",
+      "17277\n",
+      "17276\n",
+      "Not enough tweets\n",
+      "17275\n",
+      "17274\n",
+      "Not enough tweets\n",
+      "17273\n",
+      "17272\n",
+      "17271\n",
+      "17270\n",
+      "Not enough tweets\n",
+      "17269\n",
+      "17268\n",
+      "17267\n",
+      "17266\n",
+      "17265\n",
+      "17264\n",
+      "17263\n",
+      "17262\n",
+      "17261\n",
+      "17260\n",
+      "Not enough tweets\n",
+      "17259\n",
+      "17258\n",
+      "Not enough tweets\n",
+      "17257\n",
+      "17256\n",
+      "Not enough tweets\n",
+      "17255\n",
+      "Not enough tweets\n",
+      "17254\n",
+      "Not enough tweets\n",
+      "17253\n",
+      "17252\n",
+      "Not enough tweets\n",
+      "17251\n",
+      "Not enough tweets\n",
+      "17250\n",
+      "Not enough tweets\n",
+      "17249\n",
+      "17248\n",
+      "Not enough tweets\n",
+      "17247\n",
+      "17246\n",
+      "Not enough tweets\n",
+      "17245\n",
+      "Not enough tweets\n",
+      "17244\n",
+      "17243\n",
+      "Not enough tweets\n",
+      "17242\n",
+      "17241\n",
+      "17240\n",
+      "17239\n",
+      "17238\n",
+      "17237\n",
+      "17236\n",
+      "17235\n",
+      "Not enough tweets\n",
+      "17234\n",
+      "17233\n",
+      "Not enough tweets\n",
+      "17232\n",
+      "17231\n",
+      "Not enough tweets\n",
+      "17230\n",
+      "17229\n",
+      "17228\n",
+      "17227\n",
+      "17226\n",
+      "17225\n",
+      "Not enough tweets\n",
+      "17224\n",
+      "Not enough tweets\n",
+      "17223\n",
+      "17222\n",
+      "17221\n",
+      "17220\n",
+      "17219\n",
+      "Not enough tweets\n",
+      "17218\n",
+      "Not enough tweets\n",
+      "17217\n",
+      "17216\n",
+      "17215\n",
+      "Not enough tweets\n",
+      "17214\n",
+      "17213\n",
+      "17212\n",
+      "17211\n",
+      "17210\n",
+      "17209\n",
+      "17208\n",
+      "17207\n",
+      "Not enough tweets\n",
+      "17206\n",
+      "17205\n",
+      "17204\n",
+      "17203\n",
+      "Not enough tweets\n",
+      "17202\n",
+      "17201\n",
+      "17200\n",
+      "Not enough tweets\n",
+      "17199\n",
+      "17198\n",
+      "17197\n",
+      "17196\n",
+      "17195\n",
+      "17194\n",
+      "17193\n",
+      "17192\n",
+      "17191\n",
+      "Not enough tweets\n",
+      "17190\n",
+      "17189\n",
+      "17188\n",
+      "17187\n",
+      "17186\n",
+      "17185\n",
+      "17184\n",
+      "17183\n",
+      "17182\n",
+      "Not enough tweets\n",
+      "17181\n",
+      "17180\n",
+      "17179\n",
+      "17178\n",
+      "17177\n",
+      "17176\n",
+      "Not enough tweets\n",
+      "17175\n",
+      "Not enough tweets\n",
+      "17174\n",
+      "Not enough tweets\n",
+      "17173\n",
+      "Not enough tweets\n",
+      "17172\n",
+      "17171\n",
+      "Not enough tweets\n",
+      "17170\n",
+      "Not enough tweets\n",
+      "17169\n",
+      "17168\n",
+      "17167\n",
+      "17166\n",
+      "Not enough tweets\n",
+      "17165\n",
+      "17164\n",
+      "17163\n",
+      "17162\n",
+      "Not enough tweets\n",
+      "17161\n",
+      "17160\n",
+      "17159\n",
+      "17158\n",
+      "17157\n",
+      "17156\n",
+      "17155\n",
+      "17154\n",
+      "17153\n",
+      "17152\n",
+      "Not enough tweets\n",
+      "17151\n",
+      "Not enough tweets\n",
+      "17150\n",
+      "Not enough tweets\n",
+      "17149\n",
+      "17148\n",
+      "Not enough tweets\n",
+      "17147\n",
+      "Not enough tweets\n",
+      "17146\n",
+      "17145\n",
+      "17144\n",
+      "17143\n",
+      "Not enough tweets\n",
+      "17142\n",
+      "17141\n",
+      "17140\n",
+      "17139\n",
+      "Not enough tweets\n",
+      "17138\n",
+      "17137\n",
+      "Not enough tweets\n",
+      "17136\n",
+      "Not enough tweets\n",
+      "17135\n"
+     ]
+    },
+    {
+     "ename": "KeyboardInterrupt",
+     "evalue": "",
+     "output_type": "error",
+     "traceback": [
+      "\u001b[0;31m---------------------------------------------------------------------------\u001b[0m",
+      "\u001b[0;31mKeyboardInterrupt\u001b[0m                         Traceback (most recent call last)",
+      "\u001b[0;32m<ipython-input-75-f7a77f50b576>\u001b[0m in \u001b[0;36m<module>\u001b[0;34m\u001b[0m\n\u001b[1;32m     14\u001b[0m             \u001b[0;32mif\u001b[0m \u001b[0;34m(\u001b[0m\u001b[0mtimestamp\u001b[0m \u001b[0;34m-\u001b[0m \u001b[0mall_tweets\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mval\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mindex\u001b[0m\u001b[0;34m+\u001b[0m\u001b[0;36m1\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdays\u001b[0m \u001b[0;34m>\u001b[0m \u001b[0mtimedelta\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdays\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;36m365\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mdays\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     15\u001b[0m                 \u001b[0;32mbreak\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m---> 16\u001b[0;31m         \u001b[0mcleaned_tweet\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mclean_tweet\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mall_tweets\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mval\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mindex\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m     17\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mcleaned_tweet\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m''\u001b[0m \u001b[0;32mor\u001b[0m \u001b[0mcleaned_tweet\u001b[0m \u001b[0;34m==\u001b[0m \u001b[0;34m' '\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m     18\u001b[0m             \u001b[0;32mcontinue\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/indexing.py\u001b[0m in \u001b[0;36m__getitem__\u001b[0;34m(self, key)\u001b[0m\n\u001b[1;32m   1498\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1499\u001b[0m             \u001b[0mmaybe_callable\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mcom\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mapply_if_callable\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mobj\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1500\u001b[0;31m             \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_getitem_axis\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mmaybe_callable\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1501\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1502\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0m_is_scalar_access\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mkey\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/indexing.py\u001b[0m in \u001b[0;36m_getitem_axis\u001b[0;34m(self, key, axis)\u001b[0m\n\u001b[1;32m   1911\u001b[0m         \u001b[0;31m# fall thru to straight lookup\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1912\u001b[0m         \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_validate_key\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 1913\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_get_label\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   1914\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   1915\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/indexing.py\u001b[0m in \u001b[0;36m_get_label\u001b[0;34m(self, label, axis)\u001b[0m\n\u001b[1;32m    139\u001b[0m             \u001b[0;32mraise\u001b[0m \u001b[0mIndexingError\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m'no slices here, handle elsewhere'\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    140\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 141\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mobj\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_xs\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mlabel\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0maxis\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    142\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    143\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0m_get_loc\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mkey\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0maxis\u001b[0m\u001b[0;34m=\u001b[0m\u001b[0;32mNone\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/generic.py\u001b[0m in \u001b[0;36mxs\u001b[0;34m(self, key, axis, level, drop_level)\u001b[0m\n\u001b[1;32m   3596\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   3597\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mis_scalar\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m-> 3598\u001b[0;31m             \u001b[0mnew_values\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_data\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mfast_xs\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mloc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m   3599\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m   3600\u001b[0m             \u001b[0;31m# may need to box a datelike-scalar\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/internals/managers.py\u001b[0m in \u001b[0;36mfast_xs\u001b[0;34m(self, loc)\u001b[0m\n\u001b[1;32m    900\u001b[0m             \u001b[0;31m# result[blk.mgr_locs] = blk._slice((slice(None), loc))\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    901\u001b[0m             \u001b[0;32mfor\u001b[0m \u001b[0mi\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mrl\u001b[0m \u001b[0;32min\u001b[0m \u001b[0menumerate\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mblk\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mmgr_locs\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 902\u001b[0;31m                 \u001b[0mresult\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mrl\u001b[0m\u001b[0;34m]\u001b[0m \u001b[0;34m=\u001b[0m \u001b[0mblk\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0m_try_coerce_result\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mblk\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0miget\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mloc\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    903\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    904\u001b[0m         \u001b[0;32mif\u001b[0m \u001b[0mis_extension_array_dtype\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mdtype\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;32m~/anaconda3/envs/thesisfinal/lib/python3.7/site-packages/pandas/core/internals/blocks.py\u001b[0m in \u001b[0;36miget\u001b[0;34m(self, i)\u001b[0m\n\u001b[1;32m    331\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    332\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0miget\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mi\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0;32m--> 333\u001b[0;31m         \u001b[0;32mreturn\u001b[0m \u001b[0mself\u001b[0m\u001b[0;34m.\u001b[0m\u001b[0mvalues\u001b[0m\u001b[0;34m[\u001b[0m\u001b[0mi\u001b[0m\u001b[0;34m]\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n\u001b[0m\u001b[1;32m    334\u001b[0m \u001b[0;34m\u001b[0m\u001b[0m\n\u001b[1;32m    335\u001b[0m     \u001b[0;32mdef\u001b[0m \u001b[0mset\u001b[0m\u001b[0;34m(\u001b[0m\u001b[0mself\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mlocs\u001b[0m\u001b[0;34m,\u001b[0m \u001b[0mvalues\u001b[0m\u001b[0;34m)\u001b[0m\u001b[0;34m:\u001b[0m\u001b[0;34m\u001b[0m\u001b[0;34m\u001b[0m\u001b[0m\n",
+      "\u001b[0;31mKeyboardInterrupt\u001b[0m: "
+     ]
+    }
+   ],
+   "source": [
+    "overall = []\n",
+    "only_one_year = False\n",
+    "for val in reversed(range(0, len(all_tweets))):\n",
+    "    print(val)\n",
+    "    num_tweets = 0\n",
+    "    num_rt = 0\n",
+    "    num_ats = 0\n",
+    "    tweets = []\n",
+    "    timestamp = all_tweets.loc[val][2]\n",
+    "    for index in range(1, 4001, 2):\n",
+    "        if not all_tweets.loc[val][index]:\n",
+    "            break\n",
+    "        if only_one_year:\n",
+    "            if (timestamp - all_tweets.loc[val][index+1]).days > timedelta(days=365).days:\n",
+    "                break\n",
+    "        cleaned_tweet = clean_tweet(all_tweets.loc[val][index])\n",
+    "        if cleaned_tweet == '' or cleaned_tweet == ' ':\n",
+    "            continue\n",
+    "        num_tweets += 1\n",
+    "        tweets.append(float(reg.predict([get_features2(cleaned_tweet)])))\n",
+    "        if all_tweets.loc[val][index][:2] == 'RT':\n",
+    "            num_rt += 1\n",
+    "        elif all_tweets.loc[val][index][0] == '@':\n",
+    "            num_ats += 1\n",
+    "    if num_tweets < 20:\n",
+    "        print(\"Not enough tweets\")\n",
+    "        continue\n",
+    "    tweets_plot = []\n",
+    "    for tweet in tweets:\n",
+    "        tweets_plot.append(tweet)\n",
+    "\n",
+    "    #average3 = []\n",
+    "\n",
+    "    #window_size = 20\n",
+    "\n",
+    "    #for index in range(0, len(tweets_plot)-9, window_size):\n",
+    "        #average3.append(sum(tweets_plot[index:index+window_size])/window_size)\n",
+    "\n",
+    "\n",
+    "    latest_30 = tweets_plot[0:int(len(tweets_plot)*0.3)]\n",
+    "    earliest_30 = tweets_plot[int(len(tweets_plot)*0.7):len(tweets_plot)]\n",
+    "\n",
+    "    latest_30_avg = sum(latest_30)/len(latest_30)\n",
+    "    earliest_30_avg = sum(earliest_30)/len(earliest_30)\n",
+    "\n",
+    "    overall.append(latest_30_avg - earliest_30_avg)\n",
+    "    ids_and_scores.loc[val] = [str(all_tweets.loc[val][0]), latest_30_avg - earliest_30_avg, num_tweets, num_rt/num_tweets, num_ats/num_tweets]"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "test_data = pd.read_csv(\"../data/trainingandtestdata/testdata.manual.2009.06.14.csv\", header=None)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.3"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 2
+}
